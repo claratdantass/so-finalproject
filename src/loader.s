@@ -1,6 +1,9 @@
 ; entry point name that the linker and GRUB jump to
 global loader
 
+; kmain is defined in kmain.c
+extern kmain
+
 ; multiboot header, GRUB looks for this to know it's a valid kernel
 MAGIC_NUMBER equ 0x1BADB002
 FLAGS        equ 0x0
@@ -12,8 +15,19 @@ align 4
     dd FLAGS
     dd CHECKSUM
 
-; kernel entry: put a value in eax (we check it later to confirm we booted)
+; kernel bootstrap: set up the stack and jump to C
 loader:
-    mov eax, 0xCAFEBABE
+    mov esp, kernel_stack + KERNEL_STACK_SIZE   ; point esp to the start of the
+                                                ; stack (end of memory area)
+    call kmain                                  ; transfer control to C
+
 .loop:
-    jmp .loop
+    jmp .loop                                   ; safety net: never return
+
+; ---- stack (uninitialized, lives in .bss to keep the binary small) ----
+KERNEL_STACK_SIZE equ 4096                      ; 4 KB stack
+
+section .bss
+align 4                                         ; align at 4 bytes
+kernel_stack:
+    resb KERNEL_STACK_SIZE                      ; reserve stack for the kernel

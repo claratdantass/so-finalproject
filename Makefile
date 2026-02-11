@@ -7,6 +7,10 @@ ISO_DIR   := iso
 
 LOADER_SRC := $(SRC_DIR)/loader.s
 LOADER_OBJ := $(BUILD_DIR)/loader.o
+
+KMAIN_SRC  := $(SRC_DIR)/kmain.c
+KMAIN_OBJ  := $(BUILD_DIR)/kmain.o
+
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 OS_ISO     := $(BUILD_DIR)/os.iso
 
@@ -17,9 +21,14 @@ LINK_SCRIPT := link.ld
 
 # tools (i686-elf cross toolchain from Homebrew on mac)
 NASM   := nasm
+CC     := i686-elf-gcc
 LD     := i686-elf-ld
 GRUB_MKRESCUE := i686-elf-grub-mkrescue
 QEMU   := qemu-system-i386
+
+# C compiler flags: freestanding kernel, no stdlib, all warnings as errors
+CFLAGS := -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+          -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
 
 # targets
 .PHONY: all kernel iso run clean
@@ -28,12 +37,16 @@ all: kernel
 # default: build the kernel
 kernel: $(KERNEL_ELF)
 
-$(KERNEL_ELF): $(LOADER_OBJ) $(LINK_SCRIPT)
-	$(LD) -T $(LINK_SCRIPT) -o $@ $(LOADER_OBJ)
+$(KERNEL_ELF): $(LOADER_OBJ) $(KMAIN_OBJ) $(LINK_SCRIPT)
+	$(LD) -T $(LINK_SCRIPT) -o $@ $(LOADER_OBJ) $(KMAIN_OBJ)
 
 # assemble loader.s to elf32 object file
 $(LOADER_OBJ): $(LOADER_SRC) | $(BUILD_DIR)
 	$(NASM) -f elf32 $(LOADER_SRC) -o $@
+
+# compile kmain.c to object file
+$(KMAIN_OBJ): $(KMAIN_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -51,4 +64,4 @@ run: iso
 
 # remove build output and iso
 clean:
-	rm -f $(LOADER_OBJ) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL)
+	rm -f $(LOADER_OBJ) $(KMAIN_OBJ) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL)
