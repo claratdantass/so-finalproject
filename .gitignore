@@ -3,3 +3,6 @@ build/
 
 # kernel copy used when making the ISO (Makefile copies kernel.elf here)
 iso/boot/kernel.elf
+
+# QEMU serial output
+com1.out

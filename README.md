@@ -1,6 +1,6 @@
 # so-finalproject
 
-Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–3**: boot loader, minimal kernel bootstrap in assembly, and transition to C, with GRUB 2 boot and QEMU.
+Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–4**: boot loader, kernel bootstrap in assembly, transition to C, and output drivers (VGA framebuffer + serial port), with GRUB 2 boot and QEMU.
 
 ---
 
@@ -30,10 +30,15 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 ## Project layout
 
 - `src/loader.s` — bootstrap: Multiboot header, stack setup, calls `kmain` (assembly)
+- `src/io.s` — `outb`/`inb` assembly wrappers for I/O port access
 - `src/kmain.c` — kernel entry point in C
+- `src/drivers/fb.c` — VGA framebuffer driver (text output, cursor, scrolling)
+- `src/drivers/serial.c` — serial port (COM1) driver for logging
+- `include/` — header files (`io.h`, `fb.h`, `serial.h`)
 - `link.ld` — linker script for the kernel
 - `build/` — output directory (`.o`, `kernel.elf`, `os.iso`)
 - `iso/boot/grub/grub.cfg` — GRUB menu config
+- `com1.out` — serial port log (created by `make run`)
 
 ## Usage
 
