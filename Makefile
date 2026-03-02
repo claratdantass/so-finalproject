@@ -9,8 +9,11 @@ INC_DIR   := include
 LOADER_SRC := $(SRC_DIR)/loader.s
 LOADER_OBJ := $(BUILD_DIR)/loader.o
 
-IO_SRC     := $(SRC_DIR)/io.s
-IO_OBJ     := $(BUILD_DIR)/io.o
+GDT_ASM   := $(SRC_DIR)/gdt.s
+GDT_OBJ   := $(BUILD_DIR)/gdt_load.o
+
+GDT_SRC   := $(SRC_DIR)/gdt.c
+GDT_C_OBJ := $(BUILD_DIR)/gdt.o
 
 KMAIN_SRC  := $(SRC_DIR)/kmain.c
 KMAIN_OBJ  := $(BUILD_DIR)/kmain.o
@@ -49,27 +52,22 @@ all: kernel
 # default: build the kernel
 kernel: $(KERNEL_ELF)
 
-$(KERNEL_ELF): $(OBJECTS) $(LINK_SCRIPT)
-	$(LD) -T $(LINK_SCRIPT) -o $@ $(OBJECTS)
+$(KERNEL_ELF): $(LOADER_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) $(KMAIN_OBJ) $(LINK_SCRIPT)
+	$(LD) -T $(LINK_SCRIPT) -o $@ $(LOADER_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) $(KMAIN_OBJ)
 
 # assemble loader.s to elf32 object file
 $(LOADER_OBJ): $(LOADER_SRC) | $(BUILD_DIR)
 	$(NASM) -f elf32 $(LOADER_SRC) -o $@
 
-# assemble io.s to elf32 object file
-$(IO_OBJ): $(IO_SRC) | $(BUILD_DIR)
-	$(NASM) -f elf32 $(IO_SRC) -o $@
+# assemble gdt.s (lgdt and segment reload)
+$(GDT_OBJ): $(GDT_ASM) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(GDT_ASM) -o $@
 
-# compile kmain.c to object file
+# compile C sources
 $(KMAIN_OBJ): $(KMAIN_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
-# compile framebuffer driver
-$(FB_OBJ): $(FB_SRC) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $< -o $@
-
-# compile serial driver
-$(SERIAL_OBJ): $(SERIAL_SRC) | $(BUILD_DIR)
+$(GDT_C_OBJ): $(GDT_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR):
@@ -88,4 +86,4 @@ run: iso
 
 # remove build output and iso
 clean:
-	rm -f $(OBJECTS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL)
+	rm -f $(LOADER_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) $(KMAIN_OBJ) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL)

@@ -3,17 +3,14 @@
  * Called by the assembly bootstrap (loader.s) after the stack is set up.
  * No standard library is available.
  */
-#include "fb.h"
-#include "serial.h"
+#include "gdt.h"
 
 void kmain(void)
 {
-    fb_clear();
-    serial_init(SERIAL_COM1_BASE);
+    /* set up segmentation (GDT) before doing anything else */
+    gdt_init();
 
-    fb_write("Hello from kernel\n", 18);
-    serial_write(SERIAL_COM1_BASE, "Hello from serial\n", 18);
-
+    /* nothing else yet -- just keep the kernel alive */
     while (1)
         ;
 }

@@ -1,6 +1,6 @@
 # so-finalproject
 
-Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–4**: boot loader, kernel bootstrap in assembly, transition to C, and output drivers (VGA framebuffer + serial port), with GRUB 2 boot and QEMU.
+Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–5**: boot loader, minimal kernel bootstrap, transition to C, and segmentation (GDT), with GRUB 2 boot and QEMU.
 
 ---
 
@@ -32,9 +32,9 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 - `src/loader.s` — bootstrap: Multiboot header, stack setup, calls `kmain` (assembly)
 - `src/io.s` — `outb`/`inb` assembly wrappers for I/O port access
 - `src/kmain.c` — kernel entry point in C
-- `src/drivers/fb.c` — VGA framebuffer driver (text output, cursor, scrolling)
-- `src/drivers/serial.c` — serial port (COM1) driver for logging
-- `include/` — header files (`io.h`, `fb.h`, `serial.h`)
+- `src/gdt.c` — GDT descriptors and init (segmentation)
+- `src/gdt.s` — assembly: load GDT, reload segment registers
+- `src/gdt.h` — GDT init declaration
 - `link.ld` — linker script for the kernel
 - `build/` — output directory (`.o`, `kernel.elf`, `os.iso`)
 - `iso/boot/grub/grub.cfg` — GRUB menu config
@@ -46,3 +46,38 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 - **`make iso`** — builds `build/os.iso`
 - **`make run`** — runs the OS in QEMU
 - **`make clean`** — removes build artifacts
+
+---
+
+## Testing the GDT (segments)
+
+After pulling the repo and installing dependencies, you can check that segmentation is working like this.
+
+You need **i386-elf-gdb** (optional): `brew install i386-elf-gdb`.
+
+**Terminal 1** — start QEMU in debug mode and leave it running:
+
+```bash
+make iso
+qemu-system-i386 -cdrom build/os.iso -s -S
+```
+
+**Terminal 2** — run GDB:
+
+```bash
+i386-elf-gdb build/kernel.elf
+```
+
+Inside GDB, run **one command at a time** (press Enter after each). Do not paste the whole block at once.
+
+| Step | Command |
+|------|---------|
+| 1 | `target remote localhost:1234` |
+| 2 | `break gdt_load` |
+| 3 | `continue` |
+| 4 | `finish` |
+| 5 | `i r cs ds ss es fs gs` |
+
+You stop at the start of `gdt_load`, then `finish` runs until the function returns. After step 5 you should see **cs = 0x8** and **ds = ss = es = fs = gs = 0x10**.
+
+**Important:** Terminal 1 must be running QEMU with `-s -S` *before* you run step 1 in GDB. Otherwise you get “cannot resolve name” or “no registers”.
