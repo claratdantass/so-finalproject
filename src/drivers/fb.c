@@ -84,7 +84,13 @@ int fb_write(const char *buf, unsigned int len)
     for (i = 0; i < len; i++) {
         char c = buf[i];
 
-        if (c == '\n') {
+        if (c == '\b') {
+            /* backspace: move cursor back and erase the character */
+            if (fb_cursor > 0) {
+                fb_cursor--;
+                fb_write_cell(fb_cursor, ' ', FB_DEFAULT_FG, FB_DEFAULT_BG);
+            }
+        } else if (c == '\n') {
             /* advance to the start of the next row */
             fb_cursor += FB_COLS - (fb_cursor % FB_COLS);
         } else {
