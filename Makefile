@@ -42,6 +42,11 @@ FB_OBJ     := $(BUILD_DIR)/fb.o
 SERIAL_SRC := $(SRC_DIR)/drivers/serial.c
 SERIAL_OBJ := $(BUILD_DIR)/serial.o
 
+# user-mode program (flat binary loaded as a GRUB module)
+PROG_DIR   := programs
+PROG_SRC   := $(PROG_DIR)/program.s
+PROG_BIN   := $(ISO_DIR)/modules/program
+
 # all object files needed for linking
 ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(IDT_ASM_OBJ) $(IDT_OBJ) $(INT_OBJ) \
@@ -123,10 +128,15 @@ $(KBD_OBJ): $(KBD_SRC) | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
+# assemble the user program as a flat binary
+$(PROG_BIN): $(PROG_SRC)
+	mkdir -p $(ISO_DIR)/modules
+	$(NASM) -f bin $(PROG_SRC) -o $@
+
 # make bootable ISO
 iso: $(OS_ISO)
 
-$(OS_ISO): kernel
+$(OS_ISO): kernel $(PROG_BIN)
 	cp $(KERNEL_ELF) $(ISO_BOOT_KERNEL)
 	$(GRUB_MKRESCUE) -o $(OS_ISO) $(ISO_DIR)
 
@@ -136,4 +146,4 @@ run: iso
 
 # remove build output and iso
 clean:
-	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL)
+	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(PROG_BIN)
