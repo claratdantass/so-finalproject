@@ -1,7 +1,7 @@
 /* kmain -- kernel entry point in C
  *
  * Called by the assembly bootstrap (loader.s) after the stack is set up.
- * loader.s pushes ebx (multiboot info pointer) as the first argument.
+ * loader.s passes multiboot/kernel physical info as arguments.
  * No standard library is available.
  */
 #include "gdt.h"
@@ -28,8 +28,6 @@ void kmain(unsigned int multiboot_magic,
 
     serial_init(SERIAL_COM1_BASE);
     fb_clear();
-    fb_write("Kernel loaded. Initializing interrupts...\n", 42);
-
     idt_init();
 
     if (multiboot_magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -46,19 +44,6 @@ void kmain(unsigned int multiboot_magic,
     if (heap_probe != (void *)0) {
         kfree(heap_probe);
     }
-
-    fb_write("GDT initialized (chapter 8)\n", 28);
-    serial_write(SERIAL_COM1_BASE, "GDT initialized (chapter 8)\n", 28);
-    fb_write("Paging enabled (chapter 9)\n", 27);
-    serial_write(SERIAL_COM1_BASE, "Paging enabled (chapter 9)\n", 27);
-    fb_write("Page frame allocator ready (chapter 10)\n", 40);
-    serial_write(SERIAL_COM1_BASE, "Page frame allocator ready (chapter 10)\n", 40);
-    fb_write("Kernel heap ready (chapter 10)\n", 31);
-    serial_write(SERIAL_COM1_BASE, "Kernel heap ready (chapter 10)\n", 31);
-    fb_write("Hello from kernel\n", 18);
-    serial_write(SERIAL_COM1_BASE, "Hello from serial\n", 18);
-
-    fb_write("IDT loaded. Keyboard input enabled.\n", 36);
 
     if (!(mbinfo->flags & MULTIBOOT_INFO_MODS)) {
         fb_write("ERROR: No module info from GRUB.\n", 33);
