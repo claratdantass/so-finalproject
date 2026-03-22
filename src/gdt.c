@@ -1,40 +1,52 @@
-/* GDT setup: descriptors and init
- *
- * We need 3 entries: null (required), kernel code (RX), kernel data (RW).
- * Both code and data span 0x00000000 - 0xFFFFFFFF so we effectively get
- * a flat layout; segmentation is used for privilege levels (DPL 0).
- */
-
 #include "gdt.h"
 
-/* pointer passed to lgdt: limit (size-1) and base address */
+struct gdt_entry {
+    unsigned short limit_low;
+    unsigned short base_low;
+    unsigned char base_middle;
+    unsigned char access;
+    unsigned char granularity;
+    unsigned char base_high;
+} __attribute__((packed));
+
 struct gdt_ptr {
     unsigned short limit;
     unsigned int base;
 } __attribute__((packed));
 
-/* implemented in gdt.s - loads GDT and reloads segment registers */
 extern void gdt_load(struct gdt_ptr *ptr);
 
-/* 3 descriptors * 8 bytes. layout: limit, base, access, flags. */
-static unsigned long long gdt[3];
+static struct gdt_entry gdt[5];
+static struct gdt_ptr gp;
 
-/* assemble the GDT and call assembly to load it */
+static void gdt_set_gate(int idx, unsigned int base, unsigned int limit,
+                         unsigned char access, unsigned char gran)
+{
+    gdt[idx].base_low = (unsigned short)(base & 0xFFFFU);
+    gdt[idx].base_middle = (unsigned char)((base >> 16) & 0xFFU);
+    gdt[idx].base_high = (unsigned char)((base >> 24) & 0xFFU);
+
+    gdt[idx].limit_low = (unsigned short)(limit & 0xFFFFU);
+    gdt[idx].granularity = (unsigned char)((limit >> 16) & 0x0FU);
+    gdt[idx].granularity |= (unsigned char)(gran & 0xF0U);
+    gdt[idx].access = access;
+}
+
 void gdt_init(void)
 {
-    /* null descriptor (index 0) - required, never used */
-    gdt[0] = 0;
+    gp.limit = (unsigned short)(sizeof(gdt) - 1U);
+    gp.base = (unsigned int)&gdt;
 
-    /* kernel code (index 1, selector 0x08): execute + read, DPL 0, full 4GB */
-    gdt[1] = 0x00CF9A000000FFFFULL;
+    /* Null descriptor (required). */
+    gdt_set_gate(0, 0U, 0U, 0U, 0U);
 
-    /* kernel data (index 2, selector 0x10): read + write, DPL 0, full 4GB */
-    gdt[2] = 0x00CF92000000FFFFULL;
+    /* Ring 0 code/data segments: base=0, limit=4 GiB (flat model). */
+    gdt_set_gate(1, 0U, 0xFFFFFFFFU, 0x9AU, 0xCFU); /* code */
+    gdt_set_gate(2, 0U, 0xFFFFFFFFU, 0x92U, 0xCFU); /* data */
 
-    /* pass struct to assembly: limit = 3*8 - 1, base = &gdt */
-    struct gdt_ptr ptr;
-    ptr.limit = sizeof(gdt) - 1;
-    ptr.base = (unsigned int)&gdt;
+    /* Ring 3 code/data segments for user-space isolation by privilege. */
+    gdt_set_gate(3, 0U, 0xFFFFFFFFU, 0xFAU, 0xCFU); /* user code */
+    gdt_set_gate(4, 0U, 0xFFFFFFFFU, 0xF2U, 0xCFU); /* user data */
 
-    gdt_load(&ptr);
+    gdt_load(&gp);
 }

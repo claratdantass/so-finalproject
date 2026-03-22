@@ -1,38 +1,42 @@
-/* Multiboot header -- structs describing the info GRUB passes to the kernel.
- *
- * Based on the GNU Multiboot Specification:
- *   https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
- *
- * Only the fields needed for module loading (Chapter 7) are included.
- */
-
 #ifndef INCLUDE_MULTIBOOT_H
 #define INCLUDE_MULTIBOOT_H
 
-/* Bit masks for the 'flags' field in multiboot_info_t */
-#define MULTIBOOT_INFO_MEMORY   0x00000001  /* mem_lower / mem_upper valid */
-#define MULTIBOOT_INFO_BOOTDEV  0x00000002  /* boot_device valid */
-#define MULTIBOOT_INFO_CMDLINE  0x00000004  /* cmdline valid */
-#define MULTIBOOT_INFO_MODS     0x00000008  /* mods_count / mods_addr valid */
+#define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 
-/* Module descriptor: one entry per module loaded by GRUB */
-typedef struct {
-    unsigned int mod_start;     /* physical start address of module */
-    unsigned int mod_end;       /* physical end address of module */
-    unsigned int cmdline;       /* pointer to module command-line string */
-    unsigned int reserved;      /* must be 0 */
-} __attribute__((packed)) multiboot_module_t;
+/* multiboot_info flags */
+#define MULTIBOOT_INFO_MEMORY  (1U << 0)
+#define MULTIBOOT_INFO_BOOTDEV (1U << 1)
+#define MULTIBOOT_INFO_CMDLINE (1U << 2)
+#define MULTIBOOT_INFO_MODS    (1U << 3)
+#define MULTIBOOT_INFO_MMAP    (1U << 6)
 
-/* Top-level info struct passed by GRUB in register ebx */
-typedef struct {
+struct multiboot_info {
     unsigned int flags;
     unsigned int mem_lower;
     unsigned int mem_upper;
     unsigned int boot_device;
     unsigned int cmdline;
-    unsigned int mods_count;    /* number of modules loaded */
-    unsigned int mods_addr;     /* physical address of first multiboot_module_t */
-    /* remaining fields omitted -- not needed yet */
-} __attribute__((packed)) multiboot_info_t;
+    unsigned int mods_count;
+    unsigned int mods_addr;
+    unsigned int syms[4];
+    unsigned int mmap_length;
+    unsigned int mmap_addr;
+} __attribute__((packed));
+
+struct multiboot_mmap_entry {
+    unsigned int size;
+    unsigned long long addr;
+    unsigned long long len;
+    unsigned int type;
+} __attribute__((packed));
+
+typedef struct multiboot_info multiboot_info_t;
+
+typedef struct multiboot_module {
+    unsigned int mod_start;
+    unsigned int mod_end;
+    unsigned int cmdline;
+    unsigned int reserved;
+} __attribute__((packed)) multiboot_module_t;
 
 #endif /* INCLUDE_MULTIBOOT_H */

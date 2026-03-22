@@ -1,6 +1,6 @@
 # so-finalproject
 
-Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–7**: boot loader, minimal kernel bootstrap, transition to C, segmentation (GDT), interrupts/keyboard input (IDT + PIC), and loading an external program via GRUB modules, with GRUB 2 boot and QEMU.
+Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers the early kernel path from **Chapters 2-4 and 7-10**: boot loader, C kernel entry, VGA/serial output, segmentation (GDT), interrupts and keyboard input (IDT + PIC), GRUB module loading, identity-mapped paging, and memory allocators (page frame allocator + kernel heap).
 
 ---
 
@@ -32,14 +32,17 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 - `src/loader.s` — bootstrap: Multiboot header (with module alignment), stack setup, passes multiboot info to `kmain`
 - `src/io.s` — `outb`/`inb` assembly wrappers for I/O port access
 - `src/kmain.c` — kernel entry point in C; parses multiboot info and jumps to loaded module
-- `src/gdt.c` / `src/gdt.s` / `src/gdt.h` — GDT descriptors, init, and segment reload
+- `src/gdt.c` / `src/gdt.s` — GDT descriptors, init, and segment reload
 - `src/idt.c` / `src/idt.s` / `src/idt.h` — IDT setup, interrupt gate entries, and `lidt` wrapper
 - `src/interrupt_handlers.s` — generic interrupt handler stubs (NASM macros) for interrupts 0–47
 - `src/drivers/pic.c` — PIC remapping (IRQs 0–15 to interrupts 32–47) and acknowledgment
 - `src/drivers/keyboard.c` — keyboard IRQ handler, scan-code-to-ASCII translation
+- `src/paging.s` — paging bootstrap (`cr3`, `cr4.PSE`, `cr0.PG`) with identity mapping
+- `src/pfa.c` — bitmap-based page frame allocator initialized from multiboot memory map
+- `src/kheap.c` — K&R-style kernel heap (`kmalloc`/`kfree`) backed by page frames
 - `src/drivers/fb.c` — VGA text-mode framebuffer driver (write, scroll, cursor)
 - `src/drivers/serial.c` — serial port (COM1) driver
-- `include/multiboot.h` — multiboot info and module descriptor structs
+- `include/` — headers (`io.h`, `fb.h`, `serial.h`, `multiboot.h`, `gdt.h`, `pfa.h`, `paging.h`, `kheap.h`, `pic.h`, `keyboard.h`)
 - `programs/program.s` — test program loaded as a GRUB module (flat binary)
 - `link.ld` — linker script for the kernel
 - `build/` — output directory (`.o`, `kernel.elf`, `os.iso`)

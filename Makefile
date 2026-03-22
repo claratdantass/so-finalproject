@@ -42,6 +42,15 @@ FB_OBJ     := $(BUILD_DIR)/fb.o
 SERIAL_SRC := $(SRC_DIR)/drivers/serial.c
 SERIAL_OBJ := $(BUILD_DIR)/serial.o
 
+PAGING_SRC := $(SRC_DIR)/paging.s
+PAGING_OBJ := $(BUILD_DIR)/paging.o
+
+PFA_SRC    := $(SRC_DIR)/pfa.c
+PFA_OBJ    := $(BUILD_DIR)/pfa.o
+
+KHEAP_SRC  := $(SRC_DIR)/kheap.c
+KHEAP_OBJ  := $(BUILD_DIR)/kheap.o
+
 # user-mode program (flat binary loaded as a GRUB module)
 PROG_DIR   := programs
 PROG_SRC   := $(PROG_DIR)/program.s
@@ -51,7 +60,9 @@ PROG_BIN   := $(ISO_DIR)/modules/program
 ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(IDT_ASM_OBJ) $(IDT_OBJ) $(INT_OBJ) \
             $(PIC_OBJ) $(KBD_OBJ) \
-            $(FB_OBJ) $(SERIAL_OBJ) $(KMAIN_OBJ)
+            $(FB_OBJ) $(SERIAL_OBJ) \
+            $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) \
+            $(KMAIN_OBJ)
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 OS_ISO     := $(BUILD_DIR)/os.iso
@@ -123,6 +134,15 @@ $(PIC_OBJ): $(PIC_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(KBD_OBJ): $(KBD_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(PAGING_OBJ): $(PAGING_SRC) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(PAGING_SRC) -o $@
+
+$(PFA_OBJ): $(PFA_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KHEAP_OBJ): $(KHEAP_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR):
