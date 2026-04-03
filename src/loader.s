@@ -3,11 +3,13 @@ global loader
 
 ; kmain is defined in kmain.c
 extern kmain
+extern kernel_physical_start
+extern kernel_physical_end
 
 ; multiboot header, GRUB looks for this to know it's a valid kernel
 MAGIC_NUMBER equ 0x1BADB002
-FLAGS        equ 0x0
-CHECKSUM     equ -MAGIC_NUMBER   ; so magic + flags + checksum = 0
+FLAGS        equ 0x3                ; align modules + request mem info
+CHECKSUM     equ -(MAGIC_NUMBER + FLAGS)
 
 section .text
 align 4
@@ -19,6 +21,10 @@ align 4
 loader:
     mov esp, kernel_stack + KERNEL_STACK_SIZE   ; point esp to the start of the
                                                 ; stack (end of memory area)
+    push kernel_physical_end                     ; arg4
+    push kernel_physical_start                   ; arg3
+    push ebx                                     ; arg2 (multiboot info ptr)
+    push eax                                     ; arg1 (multiboot magic)
     call kmain                                  ; transfer control to C
 
 .loop:

@@ -1,6 +1,6 @@
 # so-finalproject
 
-Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers **Chapters 2–4**: boot loader, kernel bootstrap in assembly, transition to C, and output drivers (VGA framebuffer + serial port), with GRUB 2 boot and QEMU.
+Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). This repo covers the early kernel path from **Chapters 2-4 and 7-10**: boot loader, C kernel entry, VGA/serial output, segmentation (GDT), interrupts and keyboard input (IDT + PIC), GRUB module loading, identity-mapped paging, and memory allocators (page frame allocator + kernel heap).
 
 ---
 
@@ -29,15 +29,25 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 
 ## Project layout
 
-- `src/loader.s` — bootstrap: Multiboot header, stack setup, calls `kmain` (assembly)
+- `src/loader.s` — bootstrap: Multiboot header (with module alignment), stack setup, passes multiboot info to `kmain`
 - `src/io.s` — `outb`/`inb` assembly wrappers for I/O port access
-- `src/kmain.c` — kernel entry point in C
-- `src/drivers/fb.c` — VGA framebuffer driver (text output, cursor, scrolling)
-- `src/drivers/serial.c` — serial port (COM1) driver for logging
-- `include/` — header files (`io.h`, `fb.h`, `serial.h`)
+- `src/kmain.c` — kernel entry point in C; parses multiboot info and jumps to loaded module
+- `src/gdt.c` / `src/gdt.s` — GDT descriptors, init, and segment reload
+- `src/idt.c` / `src/idt.s` / `src/idt.h` — IDT setup, interrupt gate entries, and `lidt` wrapper
+- `src/interrupt_handlers.s` — generic interrupt handler stubs (NASM macros) for interrupts 0–47
+- `src/drivers/pic.c` — PIC remapping (IRQs 0–15 to interrupts 32–47) and acknowledgment
+- `src/drivers/keyboard.c` — keyboard IRQ handler, scan-code-to-ASCII translation
+- `src/paging.s` — paging bootstrap (`cr3`, `cr4.PSE`, `cr0.PG`) with identity mapping
+- `src/pfa.c` — bitmap-based page frame allocator initialized from multiboot memory map
+- `src/kheap.c` — K&R-style kernel heap (`kmalloc`/`kfree`) backed by page frames
+- `src/drivers/fb.c` — VGA text-mode framebuffer driver (write, scroll, cursor)
+- `src/drivers/serial.c` — serial port (COM1) driver
+- `include/` — headers (`io.h`, `fb.h`, `serial.h`, `multiboot.h`, `gdt.h`, `pfa.h`, `paging.h`, `kheap.h`, `pic.h`, `keyboard.h`)
+- `programs/program.s` — test program loaded as a GRUB module (flat binary)
 - `link.ld` — linker script for the kernel
 - `build/` — output directory (`.o`, `kernel.elf`, `os.iso`)
-- `iso/boot/grub/grub.cfg` — GRUB menu config
+- `iso/boot/grub/grub.cfg` — GRUB menu config (loads kernel + module)
+- `iso/modules/` — GRUB modules directory (contains the compiled program)
 - `com1.out` — serial port log (created by `make run`)
 
 ## Usage
@@ -46,3 +56,73 @@ brew install make nasm qemu xorriso i686-elf-gcc i686-elf-grub i686-elf-binutils
 - **`make iso`** — builds `build/os.iso`
 - **`make run`** — runs the OS in QEMU
 - **`make clean`** — removes build artifacts
+
+---
+
+## Testing the GDT (segments)
+
+After pulling the repo and installing dependencies, you can check that segmentation is working like this.
+
+You need **i386-elf-gdb** (optional): `brew install i386-elf-gdb`.
+
+**Terminal 1** — start QEMU in debug mode and leave it running:
+
+```bash
+make iso
+qemu-system-i386 -cdrom build/os.iso -s -S
+```
+
+**Terminal 2** — run GDB:
+
+```bash
+i386-elf-gdb build/kernel.elf
+```
+
+Inside GDB, run **one command at a time** (press Enter after each). Do not paste the whole block at once.
+
+| Step | Command |
+|------|---------|
+| 1 | `target remote localhost:1234` |
+| 2 | `break gdt_load` |
+| 3 | `continue` |
+| 4 | `finish` |
+| 5 | `i r cs ds ss es fs gs` |
+
+You stop at the start of `gdt_load`, then `finish` runs until the function returns. After step 5 you should see **cs = 0x8** and **ds = ss = es = fs = gs = 0x10**.
+
+**Important:** Terminal 1 must be running QEMU with `-s -S` *before* you run step 1 in GDB.
+
+---
+
+## Testing GRUB module loading (Chapter 7)
+
+After building, the kernel loads a flat-binary program via GRUB modules. The program sets `eax` to `0xDEADBEEF` and enters an infinite loop. You can verify it ran using GDB.
+
+You need **i386-elf-gdb** (optional): `brew install i386-elf-gdb`.
+
+**Terminal 1** — start QEMU in debug mode:
+
+```bash
+make iso
+qemu-system-i386 -cdrom build/os.iso -s -S
+```
+
+**Terminal 2** — run GDB:
+
+```bash
+i386-elf-gdb build/kernel.elf
+```
+
+Inside GDB, run **one command at a time**:
+
+| Step | Command |
+|------|---------|
+| 1 | `target remote localhost:1234` |
+| 2 | `break kmain` |
+| 3 | `continue` |
+| 4 | `finish` |
+| 5 | `info registers eax` |
+
+After `finish`, the program module has executed and `eax` should contain **0xDEADBEEF**.
+
+You should also see the message **"Module found. Jumping to program..."** on the QEMU screen before the program takes over.
