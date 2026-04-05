@@ -1,7 +1,7 @@
 ; entry point name that the linker and GRUB jump to
 global loader
+global kernel_stack
 
-; kmain is defined in kmain.c
 extern kmain
 extern kernel_physical_start
 extern kernel_physical_end

@@ -206,6 +206,11 @@ void pfa_free_contiguous(unsigned int frame_addr, unsigned int frame_count)
     }
 }
 
+void pfa_reserve(unsigned int start_addr, unsigned int end_addr)
+{
+    mark_region_used(start_addr, end_addr);
+}
+
 unsigned int pfa_total_frames(void)
 {
     return total_frame_count;

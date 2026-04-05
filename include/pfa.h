@@ -13,6 +13,8 @@ void pfa_free(unsigned int frame_addr);
 unsigned int pfa_alloc_contiguous(unsigned int frame_count);
 void pfa_free_contiguous(unsigned int frame_addr, unsigned int frame_count);
 
+void pfa_reserve(unsigned int start_addr, unsigned int end_addr);
+
 unsigned int pfa_total_frames(void);
 unsigned int pfa_used_frames(void);
 unsigned int pfa_free_frames(void);
