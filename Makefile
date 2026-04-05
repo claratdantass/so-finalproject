@@ -63,6 +63,12 @@ PAGING4K_OBJ := $(BUILD_DIR)/paging4k.o
 FS_SRC     := $(SRC_DIR)/fs.c
 FS_OBJ     := $(BUILD_DIR)/fs.o
 
+SYSCALL_ASM     := $(SRC_DIR)/syscall_handler.s
+SYSCALL_ASM_OBJ := $(BUILD_DIR)/syscall_handler.o
+
+SYSCALL_SRC := $(SRC_DIR)/syscall.c
+SYSCALL_OBJ := $(BUILD_DIR)/syscall.o
+
 UMODE_ASM  := $(SRC_DIR)/usermode.s
 UMODE_OBJ  := $(BUILD_DIR)/usermode.o
 
@@ -87,7 +93,8 @@ ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(PIC_OBJ) $(KBD_OBJ) \
             $(FB_OBJ) $(SERIAL_OBJ) \
             $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) $(KUTIL_OBJ) \
-            $(TSS_OBJ) $(PAGING4K_OBJ) $(FS_OBJ) $(UMODE_OBJ) \
+            $(TSS_OBJ) $(PAGING4K_OBJ) $(FS_OBJ) \
+            $(SYSCALL_ASM_OBJ) $(SYSCALL_OBJ) $(UMODE_OBJ) \
             $(KMAIN_OBJ)
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
@@ -181,6 +188,12 @@ $(PAGING4K_OBJ): $(PAGING4K_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(FS_OBJ): $(FS_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(SYSCALL_ASM_OBJ): $(SYSCALL_ASM) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(SYSCALL_ASM) -o $@
+
+$(SYSCALL_OBJ): $(SYSCALL_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
 $(UMODE_OBJ): $(UMODE_ASM) | $(BUILD_DIR)

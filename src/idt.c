@@ -83,6 +83,8 @@ extern void interrupt_handler_45(void);
 extern void interrupt_handler_46(void);
 extern void interrupt_handler_47(void);
 
+extern void syscall_handler_128(void);
+
 static struct idt_entry idt[IDT_NUM_ENTRIES];
 
 /* CPU state pushed by the common interrupt handler */
@@ -171,6 +173,9 @@ static void idt_install_handlers(void)
     idt_set_entry(45, (unsigned int)interrupt_handler_45, KERNEL_CODE_SEGMENT, attr);
     idt_set_entry(46, (unsigned int)interrupt_handler_46, KERNEL_CODE_SEGMENT, attr);
     idt_set_entry(47, (unsigned int)interrupt_handler_47, KERNEL_CODE_SEGMENT, attr);
+
+    /* System call: DPL=3 so user mode can invoke via int 0x80 */
+    idt_set_entry(0x80, (unsigned int)syscall_handler_128, KERNEL_CODE_SEGMENT, 0xEE);
 }
 
 /* C interrupt dispatcher called from assembly common_interrupt_handler */

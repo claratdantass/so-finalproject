@@ -1,5 +1,7 @@
+#include "syscall.h"
+
 void main(void)
 {
-    while (1) {
-    }
+    write("Hello from user mode!\n", 22);
+    exit();
 }
