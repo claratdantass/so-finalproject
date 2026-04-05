@@ -1,3 +1,5 @@
+/* Mini-shell: loop readline → parse; built-ins locais ou spawn + wait. */
+
 #include "syscall.h"
 #include "ulib.h"
 
@@ -7,9 +9,11 @@ void main(void)
     char filebuf[512];
     int len, pid;
 
+    /* ---- Banner ---- */
     write("=== MiniShell v1.0 ===\n", 23);
     write("Type 'help' for available commands.\n\n", 37);
 
+    /* ---- REPL: prompt, normalização da linha, dispatch ---- */
     while (1) {
         write("> ", 2);
         len = read(cmd, sizeof(cmd) - 1);
@@ -24,6 +28,7 @@ void main(void)
         if (len == 0)
             continue;
 
+        /* Built-ins */
         if (streq(cmd, "help")) {
             write("Available commands:\n", 20);
             write("  help    - show this help\n", 27);
@@ -41,6 +46,7 @@ void main(void)
             write("Goodbye!\n", 9);
             exit();
         } else {
+            /* Programa no SOFS */
             pid = spawn(cmd);
             if (pid < 0) {
                 write("Unknown command: ", 17);

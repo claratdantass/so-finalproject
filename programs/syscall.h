@@ -1,3 +1,5 @@
+/* Números de syscall e wrappers inline (eax/ebx/ecx) para int $0x80. */
+
 #ifndef PROGRAMS_SYSCALL_H
 #define PROGRAMS_SYSCALL_H
 

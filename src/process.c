@@ -1,3 +1,6 @@
+/* Multitarefa: tabela de PCBs, criação de processos (código SOFS + páginas
+ * usuário), escalonamento round-robin e arranque do primeiro processo. */
+
 #include "process.h"
 #include "pfa.h"
 #include "paging4k.h"
@@ -15,6 +18,7 @@ extern void switch_context(unsigned int *old_esp, unsigned int new_esp,
 extern void jump_to_process(unsigned int saved_esp, unsigned int page_dir_phys);
 extern void process_start_trampoline(void);
 
+/* ---- Tabela global de processos e processo atual ---- */
 static struct process procs[MAX_PROCESSES];
 static struct process *current;
 static unsigned int next_pid = 1;
@@ -35,6 +39,7 @@ struct process *process_current(void)
     return current;
 }
 
+/* ---- Cria processo: aloca frames, copia binário, monta stack kernel fake ---- */
 int process_create(struct fs_instance *fs, const char *name)
 {
     int slot, fs_idx;
@@ -143,6 +148,7 @@ int process_create(struct fs_instance *fs, const char *name)
     return (int)procs[slot].pid;
 }
 
+/* ---- Consultas para wait / top ---- */
 int process_is_alive(unsigned int pid)
 {
     unsigned int i;
@@ -170,6 +176,7 @@ int process_get_info(struct proc_info *buf, int max)
     return count;
 }
 
+/* ---- Escalonamento: próximo READY, troca de contexto e CR3 ---- */
 void schedule(void)
 {
     struct process *old;
@@ -208,6 +215,7 @@ void schedule(void)
     switch_context(&old->esp, next->esp, next->page_dir_phys);
 }
 
+/* ---- Primeira entrada no modo usuário (sem “volta” para o kernel) ---- */
 void scheduler_start(void)
 {
     unsigned int i;

@@ -1,6 +1,9 @@
+/* Visualizador de processos: redesenha tabela; Enter atualiza, q sai. */
+
 #include "syscall.h"
 #include "ulib.h"
 
+/* ---- Rótulos de estado para a tabela ---- */
 static const char *state_name(unsigned int s)
 {
     if (s == 1) return "READY  ";
@@ -15,6 +18,7 @@ void main(void)
     char numbuf[12];
     int count, i, len, pad;
 
+    /* ---- Loop: limpa, imprime snapshot, espera comando ---- */
     while (1) {
         clear();
         write("=== Process Viewer (top) ===\n\n", 30);

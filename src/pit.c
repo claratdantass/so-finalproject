@@ -1,3 +1,6 @@
+/* Timer (PIT): canal 0 em modo square wave; IRQ0 desmascarado para o
+ * escalonador preemptivo chamar schedule() a partir do usuário. */
+
 #include "pit.h"
 #include "io.h"
 
@@ -6,6 +9,7 @@
 #define PIT_BASE_FREQ     1193182U
 #define PIC1_DATA_PORT    0x21
 
+/* Calcula divisor a partir de Hz, programa 0x40/0x43, libera IRQ0. */
 void pit_init(unsigned int freq_hz)
 {
     unsigned int divisor;

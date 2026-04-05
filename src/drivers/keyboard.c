@@ -1,3 +1,6 @@
+/* Driver de teclado: IRQ1 lê scan codes, ecoa no VGA e monta uma linha
+ * em buffer até Enter; o syscall SYS_READ consome essa linha. */
+
 #include "io.h"
 #include "fb.h"
 #include "keyboard.h"
@@ -5,6 +8,7 @@
 #define KBD_DATA_PORT   0x60
 #define KB_LINE_MAX     128
 
+/* ---- Tabela scan code (set 1) → ASCII ---- */
 static const char scancode_to_ascii[128] = {
     0,   27, '1', '2', '3', '4', '5', '6',
    '7', '8', '9', '0', '-', '=','\b','\t',
@@ -24,6 +28,7 @@ static const char scancode_to_ascii[128] = {
     0,   0,   0,   0,   0,   0,   0,   0
 };
 
+/* ---- Estado da linha atual (até SYS_READ esvaziar) ---- */
 static char kb_line_buf[KB_LINE_MAX];
 static unsigned int kb_line_len = 0;
 static volatile int kb_line_complete = 0;
@@ -33,6 +38,7 @@ static unsigned char read_scan_code(void)
     return inb(KBD_DATA_PORT);
 }
 
+/* ---- Tratamento de IRQ: eco + backspace + fim de linha ---- */
 void keyboard_handler(void)
 {
     unsigned char scan_code = read_scan_code();
@@ -64,6 +70,7 @@ void keyboard_handler(void)
     }
 }
 
+/* ---- API usada pelo syscall SYS_READ ---- */
 int keyboard_has_line(void)
 {
     return kb_line_complete;

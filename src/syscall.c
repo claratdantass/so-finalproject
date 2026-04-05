@@ -1,3 +1,6 @@
+/* Despacho de syscalls: int 0x80 chega aqui via syscall_handler.s.
+ * Cada caso traduz a chamada do usuário para funções do kernel. */
+
 #include "syscall.h"
 #include "fb.h"
 #include "fs.h"
@@ -9,10 +12,12 @@ extern struct fs_instance rootfs;
 void syscall_dispatch(struct syscall_regs *regs)
 {
     switch (regs->eax) {
+    /* ---- Saída no console (VGA) ---- */
     case SYS_WRITE:
         regs->eax = (unsigned int)fb_write((const char *)regs->ebx, regs->ecx);
         break;
 
+    /* ---- Ciclo de vida e agendamento de processos ---- */
     case SYS_EXIT:
         process_current()->state = PROC_STATE_DEAD;
         schedule();
@@ -30,6 +35,7 @@ void syscall_dispatch(struct syscall_regs *regs)
                                                   (const char *)regs->ebx);
         break;
 
+    /* ---- Entrada e sincronização (bloqueio cooperativo + hlt) ---- */
     case SYS_READ:
         while (!keyboard_has_line()) {
             schedule();
@@ -52,6 +58,7 @@ void syscall_dispatch(struct syscall_regs *regs)
         break;
     }
 
+    /* ---- Introspecção: tabela de processos e listagem SOFS ---- */
     case SYS_GETPROCS:
         regs->eax = (unsigned int)process_get_info(
             (struct proc_info *)regs->ebx, (int)regs->ecx);
@@ -62,11 +69,13 @@ void syscall_dispatch(struct syscall_regs *regs)
                                            (char *)regs->ebx, regs->ecx);
         break;
 
+    /* ---- Limpeza de tela ---- */
     case SYS_CLEAR:
         fb_clear();
         regs->eax = 0;
         break;
 
+    /* ---- Syscall desconhecida ---- */
     default:
         regs->eax = (unsigned int)-1;
         break;

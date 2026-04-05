@@ -1,3 +1,6 @@
+/* Ponto de entrada C: inicializa subsistemas, monta SOFS a partir do módulo
+ * GRUB, cria o processo shell e inicia o escalonador. */
+
 #include "gdt.h"
 #include "tss.h"
 #include "idt.h"
@@ -26,6 +29,7 @@ void kmain(unsigned int multiboot_magic,
     multiboot_module_t *mod;
     int n;
 
+    /* ---- CPU, segmentos, paginação identidade e interrupções ---- */
     tss_init((unsigned int)kernel_stack + KERNEL_STACK_SIZE, 0x10);
     gdt_init();
     tss_load();
@@ -42,6 +46,7 @@ void kmain(unsigned int multiboot_magic,
             ;
     }
 
+    /* ---- Memória física e heap do kernel ---- */
     pfa_init(multiboot_info_addr, kernel_physical_start, kernel_physical_end);
     kheap_init();
 
@@ -58,6 +63,7 @@ void kmain(unsigned int multiboot_magic,
         goto halt;
     }
 
+    /* ---- SOFS no initrd e mensagem de boot ---- */
     fb_write("SOFS: ", 6);
     {
         n = fs_num_files(&rootfs);
@@ -66,6 +72,7 @@ void kmain(unsigned int multiboot_magic,
     }
     fb_write(" file(s) loaded.\n", 17);
 
+    /* ---- Um processo inicial + timer preemptivo ---- */
     process_init();
     process_create(&rootfs, "shell");
 
@@ -74,6 +81,7 @@ void kmain(unsigned int multiboot_magic,
     fb_write("Starting shell...\n", 18);
     scheduler_start();
 
+/* ---- Falha de boot ou caminho de erro: CPU em hlt ---- */
 halt:
     while (1) {
         __asm__ __volatile__("hlt");

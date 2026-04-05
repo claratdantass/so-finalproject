@@ -1,3 +1,5 @@
+/* Programa de demonstração carregável pelo shell. */
+
 #include "syscall.h"
 
 void main(void)

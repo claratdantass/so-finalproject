@@ -1,6 +1,9 @@
+/* Funções mínimas em linha para programas em modo usuário (sem libc). */
+
 #ifndef PROGRAMS_ULIB_H
 #define PROGRAMS_ULIB_H
 
+/* ---- Comparação e tamanho de string ---- */
 static inline int streq(const char *a, const char *b)
 {
     while (*a && *a == *b) {
@@ -19,6 +22,7 @@ static inline unsigned int ustrlen(const char *s)
     return len;
 }
 
+/* ---- Inteiro positivo → decimal ASCII (buffer fornecido pelo chamador) ---- */
 static inline void itoa(int n, char *buf)
 {
     int i = 0, j;
