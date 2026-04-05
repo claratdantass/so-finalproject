@@ -24,7 +24,7 @@ enter_usermode:
 
     push dword 0x23             ; ss:  user data selector
     push ebx                    ; esp: user stack pointer
-    push dword 0x0002           ; eflags: IF=0 (interrupts disabled), bit 1 reserved
+    push dword 0x0202           ; eflags: IF=1 (interrupts enabled), bit 1 reserved
     push dword 0x1B             ; cs:  user code selector (0x18 | RPL 3)
     push eax                    ; eip: user entry point
 
