@@ -51,17 +51,37 @@ PFA_OBJ    := $(BUILD_DIR)/pfa.o
 KHEAP_SRC  := $(SRC_DIR)/kheap.c
 KHEAP_OBJ  := $(BUILD_DIR)/kheap.o
 
+KUTIL_SRC  := $(SRC_DIR)/kutil.c
+KUTIL_OBJ  := $(BUILD_DIR)/kutil.o
+
+TSS_SRC    := $(SRC_DIR)/tss.c
+TSS_OBJ    := $(BUILD_DIR)/tss.o
+
+PAGING4K_SRC := $(SRC_DIR)/paging4k.c
+PAGING4K_OBJ := $(BUILD_DIR)/paging4k.o
+
+UMODE_ASM  := $(SRC_DIR)/usermode.s
+UMODE_OBJ  := $(BUILD_DIR)/usermode.o
+
 # user-mode program (flat binary loaded as a GRUB module)
-PROG_DIR   := programs
-PROG_SRC   := $(PROG_DIR)/program.s
-PROG_BIN   := $(ISO_DIR)/modules/program
+PROG_DIR       := programs
+PROG_START_SRC := $(PROG_DIR)/start.s
+PROG_START_OBJ := $(BUILD_DIR)/prog_start.o
+PROG_MAIN_SRC  := $(PROG_DIR)/program.c
+PROG_MAIN_OBJ  := $(BUILD_DIR)/prog_program.o
+PROG_LINK      := $(PROG_DIR)/link.ld
+PROG_BIN       := $(ISO_DIR)/modules/program
+
+PROG_CFLAGS := -m32 -ffreestanding -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+               -nostartfiles -nodefaultlibs -fno-pie -Wall -Wextra -Werror -c
 
 # all object files needed for linking
 ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(IDT_ASM_OBJ) $(IDT_OBJ) $(INT_OBJ) \
             $(PIC_OBJ) $(KBD_OBJ) \
             $(FB_OBJ) $(SERIAL_OBJ) \
-            $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) \
+            $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) $(KUTIL_OBJ) \
+            $(TSS_OBJ) $(PAGING4K_OBJ) $(UMODE_OBJ) \
             $(KMAIN_OBJ)
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
@@ -145,13 +165,31 @@ $(PFA_OBJ): $(PFA_SRC) | $(BUILD_DIR)
 $(KHEAP_OBJ): $(KHEAP_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
+$(KUTIL_OBJ): $(KUTIL_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(TSS_OBJ): $(TSS_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(PAGING4K_OBJ): $(PAGING4K_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(UMODE_OBJ): $(UMODE_ASM) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(UMODE_ASM) -o $@
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-# assemble the user program as a flat binary
-$(PROG_BIN): $(PROG_SRC)
+# assemble/compile user program as a flat binary
+$(PROG_START_OBJ): $(PROG_START_SRC) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(PROG_START_SRC) -o $@
+
+$(PROG_MAIN_OBJ): $(PROG_MAIN_SRC) | $(BUILD_DIR)
+	$(CC) $(PROG_CFLAGS) $< -o $@
+
+$(PROG_BIN): $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_LINK)
 	mkdir -p $(ISO_DIR)/modules
-	$(NASM) -f bin $(PROG_SRC) -o $@
+	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_MAIN_OBJ) -o $@
 
 # make bootable ISO
 iso: $(OS_ISO)
@@ -164,6 +202,11 @@ $(OS_ISO): kernel $(PROG_BIN)
 run: iso
 	$(QEMU) -cdrom $(OS_ISO) -serial file:com1.out
 
+# run in QEMU with monitor on stdio (type 'info registers' to inspect CPU state)
+debug: iso
+	$(QEMU) -cdrom $(OS_ISO) -serial file:com1.out -monitor stdio -no-reboot -no-shutdown
+
 # remove build output and iso
 clean:
-	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(PROG_BIN)
+	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(PROG_BIN) \
+	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ)
