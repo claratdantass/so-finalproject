@@ -69,6 +69,15 @@ SYSCALL_ASM_OBJ := $(BUILD_DIR)/syscall_handler.o
 SYSCALL_SRC := $(SRC_DIR)/syscall.c
 SYSCALL_OBJ := $(BUILD_DIR)/syscall.o
 
+CTXSW_ASM  := $(SRC_DIR)/context_switch.s
+CTXSW_OBJ  := $(BUILD_DIR)/context_switch.o
+
+PROCESS_SRC := $(SRC_DIR)/process.c
+PROCESS_OBJ := $(BUILD_DIR)/process.o
+
+PIT_SRC    := $(SRC_DIR)/pit.c
+PIT_OBJ    := $(BUILD_DIR)/pit.o
+
 UMODE_ASM  := $(SRC_DIR)/usermode.s
 UMODE_OBJ  := $(BUILD_DIR)/usermode.o
 
@@ -78,6 +87,8 @@ PROG_START_SRC := $(PROG_DIR)/start.s
 PROG_START_OBJ := $(BUILD_DIR)/prog_start.o
 PROG_MAIN_SRC  := $(PROG_DIR)/program.c
 PROG_MAIN_OBJ  := $(BUILD_DIR)/prog_program.o
+PROG_HELLO_SRC := $(PROG_DIR)/hello.c
+PROG_HELLO_OBJ := $(BUILD_DIR)/prog_hello.o
 PROG_LINK      := $(PROG_DIR)/link.ld
 
 # rootfs directory and initrd image
@@ -94,7 +105,8 @@ ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(FB_OBJ) $(SERIAL_OBJ) \
             $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) $(KUTIL_OBJ) \
             $(TSS_OBJ) $(PAGING4K_OBJ) $(FS_OBJ) \
-            $(SYSCALL_ASM_OBJ) $(SYSCALL_OBJ) $(UMODE_OBJ) \
+            $(SYSCALL_ASM_OBJ) $(SYSCALL_OBJ) \
+            $(CTXSW_OBJ) $(PROCESS_OBJ) $(PIT_OBJ) $(UMODE_OBJ) \
             $(KMAIN_OBJ)
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
@@ -196,6 +208,15 @@ $(SYSCALL_ASM_OBJ): $(SYSCALL_ASM) | $(BUILD_DIR)
 $(SYSCALL_OBJ): $(SYSCALL_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
+$(CTXSW_OBJ): $(CTXSW_ASM) | $(BUILD_DIR)
+	$(NASM) -f elf32 $(CTXSW_ASM) -o $@
+
+$(PROCESS_OBJ): $(PROCESS_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(PIT_OBJ): $(PIT_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
 $(UMODE_OBJ): $(UMODE_ASM) | $(BUILD_DIR)
 	$(NASM) -f elf32 $(UMODE_ASM) -o $@
 
@@ -209,6 +230,9 @@ $(PROG_START_OBJ): $(PROG_START_SRC) | $(BUILD_DIR)
 $(PROG_MAIN_OBJ): $(PROG_MAIN_SRC) | $(BUILD_DIR)
 	$(CC) $(PROG_CFLAGS) $< -o $@
 
+$(PROG_HELLO_OBJ): $(PROG_HELLO_SRC) | $(BUILD_DIR)
+	$(CC) $(PROG_CFLAGS) $< -o $@
+
 # build rootfs directory with user programs, then pack into initrd
 $(ROOTFS_DIR): | $(BUILD_DIR)
 	mkdir -p $(ROOTFS_DIR)
@@ -216,7 +240,10 @@ $(ROOTFS_DIR): | $(BUILD_DIR)
 $(ROOTFS_DIR)/program: $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
 	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_MAIN_OBJ) -o $@
 
-$(INITRD): $(ROOTFS_DIR)/program tools/mkfs.py
+$(ROOTFS_DIR)/hello: $(PROG_START_OBJ) $(PROG_HELLO_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
+	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_HELLO_OBJ) -o $@
+
+$(INITRD): $(ROOTFS_DIR)/program $(ROOTFS_DIR)/hello tools/mkfs.py
 	mkdir -p $(ISO_DIR)/modules
 	python3 tools/mkfs.py $(ROOTFS_DIR) $@
 
@@ -238,5 +265,5 @@ debug: iso
 # remove build output and iso
 clean:
 	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(INITRD) \
-	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ)
+	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_HELLO_OBJ)
 	rm -rf $(ROOTFS_DIR)

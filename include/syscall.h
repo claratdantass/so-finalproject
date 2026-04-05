@@ -3,6 +3,8 @@
 
 #define SYS_WRITE 1
 #define SYS_EXIT  2
+#define SYS_YIELD 3
+#define SYS_SPAWN 4
 
 struct syscall_regs {
     unsigned int ebp;

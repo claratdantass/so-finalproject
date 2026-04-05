@@ -2,6 +2,10 @@
 
 void main(void)
 {
-    write("Hello from user mode!\n", 22);
+    write("Process A started\n", 18);
+    yield();
+    write("Process A resumed\n", 18);
+    yield();
+    write("Process A exiting\n", 18);
     exit();
 }

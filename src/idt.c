@@ -9,6 +9,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "keyboard.h"
+#include "process.h"
 #include "io.h"
 #include "fb.h"
 
@@ -183,16 +184,19 @@ void interrupt_handler(struct cpu_state cpu, unsigned int int_no,
                        struct stack_state stack)
 {
     (void)cpu;
-    (void)stack;
 
-    /* IRQ 1 (interrupt 33) = keyboard */
     if (int_no == 33) {
         keyboard_handler();
     }
 
-    /* Acknowledge PIC interrupts (32-47) */
+    /* Acknowledge PIC before scheduling (schedule may not return immediately) */
     if (int_no >= 32 && int_no <= 47) {
         pic_acknowledge(int_no);
+    }
+
+    /* Timer interrupt (IRQ 0): preemptive scheduling */
+    if (int_no == 32 && (stack.cs & 0x3) == 3) {
+        schedule();
     }
 }
 
