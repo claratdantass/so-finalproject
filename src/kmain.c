@@ -67,12 +67,11 @@ void kmain(unsigned int multiboot_magic,
     fb_write(" file(s) loaded.\n", 17);
 
     process_init();
-    process_create(&rootfs, "program");
-    process_create(&rootfs, "hello");
+    process_create(&rootfs, "shell");
 
     pit_init(50);
 
-    fb_write("Starting processes...\n", 21);
+    fb_write("Starting shell...\n", 18);
     scheduler_start();
 
 halt:

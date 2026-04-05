@@ -89,6 +89,10 @@ PROG_MAIN_SRC  := $(PROG_DIR)/program.c
 PROG_MAIN_OBJ  := $(BUILD_DIR)/prog_program.o
 PROG_HELLO_SRC := $(PROG_DIR)/hello.c
 PROG_HELLO_OBJ := $(BUILD_DIR)/prog_hello.o
+PROG_SHELL_SRC := $(PROG_DIR)/shell.c
+PROG_SHELL_OBJ := $(BUILD_DIR)/prog_shell.o
+PROG_TOP_SRC   := $(PROG_DIR)/top.c
+PROG_TOP_OBJ   := $(BUILD_DIR)/prog_top.o
 PROG_LINK      := $(PROG_DIR)/link.ld
 
 # rootfs directory and initrd image
@@ -233,6 +237,12 @@ $(PROG_MAIN_OBJ): $(PROG_MAIN_SRC) | $(BUILD_DIR)
 $(PROG_HELLO_OBJ): $(PROG_HELLO_SRC) | $(BUILD_DIR)
 	$(CC) $(PROG_CFLAGS) $< -o $@
 
+$(PROG_SHELL_OBJ): $(PROG_SHELL_SRC) | $(BUILD_DIR)
+	$(CC) $(PROG_CFLAGS) $< -o $@
+
+$(PROG_TOP_OBJ): $(PROG_TOP_SRC) | $(BUILD_DIR)
+	$(CC) $(PROG_CFLAGS) $< -o $@
+
 # build rootfs directory with user programs, then pack into initrd
 $(ROOTFS_DIR): | $(BUILD_DIR)
 	mkdir -p $(ROOTFS_DIR)
@@ -243,7 +253,13 @@ $(ROOTFS_DIR)/program: $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_LINK) | $(ROOTF
 $(ROOTFS_DIR)/hello: $(PROG_START_OBJ) $(PROG_HELLO_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
 	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_HELLO_OBJ) -o $@
 
-$(INITRD): $(ROOTFS_DIR)/program $(ROOTFS_DIR)/hello tools/mkfs.py
+$(ROOTFS_DIR)/shell: $(PROG_START_OBJ) $(PROG_SHELL_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
+	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_SHELL_OBJ) -o $@
+
+$(ROOTFS_DIR)/top: $(PROG_START_OBJ) $(PROG_TOP_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
+	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_TOP_OBJ) -o $@
+
+$(INITRD): $(ROOTFS_DIR)/program $(ROOTFS_DIR)/hello $(ROOTFS_DIR)/shell $(ROOTFS_DIR)/top tools/mkfs.py
 	mkdir -p $(ISO_DIR)/modules
 	python3 tools/mkfs.py $(ROOTFS_DIR) $@
 
@@ -265,5 +281,6 @@ debug: iso
 # remove build output and iso
 clean:
 	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(INITRD) \
-	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_HELLO_OBJ)
+	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_HELLO_OBJ) \
+	      $(PROG_SHELL_OBJ) $(PROG_TOP_OBJ)
 	rm -rf $(ROOTFS_DIR)

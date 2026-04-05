@@ -27,5 +27,6 @@ int  fs_find(struct fs_instance *fs, const char *name);
 unsigned int fs_file_data(struct fs_instance *fs, int index);
 unsigned int fs_file_size(struct fs_instance *fs, int index);
 const char  *fs_file_name(struct fs_instance *fs, int index);
+int          fs_list(struct fs_instance *fs, char *buf, unsigned int buf_size);
 
 #endif /* INCLUDE_FS_H */

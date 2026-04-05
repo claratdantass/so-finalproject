@@ -132,7 +132,42 @@ int process_create(struct fs_instance *fs, const char *name)
     procs[slot].kernel_stack = kstack_base;
     procs[slot].kernel_stack_top = kstack_top;
 
+    {
+        unsigned int nlen = strlen(name);
+        if (nlen > PROC_NAME_MAX - 1)
+            nlen = PROC_NAME_MAX - 1;
+        memcpy(procs[slot].name, name, nlen);
+        procs[slot].name[nlen] = '\0';
+    }
+
     return (int)procs[slot].pid;
+}
+
+int process_is_alive(unsigned int pid)
+{
+    unsigned int i;
+
+    for (i = 0; i < MAX_PROCESSES; i++) {
+        if (procs[i].pid == pid && procs[i].state != PROC_STATE_DEAD)
+            return 1;
+    }
+    return 0;
+}
+
+int process_get_info(struct proc_info *buf, int max)
+{
+    int count = 0;
+    unsigned int i;
+
+    for (i = 0; i < MAX_PROCESSES && count < max; i++) {
+        if (procs[i].state != PROC_STATE_DEAD) {
+            buf[count].pid = procs[i].pid;
+            buf[count].state = procs[i].state;
+            memcpy(buf[count].name, procs[i].name, PROC_NAME_MAX);
+            count++;
+        }
+    }
+    return count;
 }
 
 void schedule(void)
