@@ -4,6 +4,6 @@
 
 void main(void)
 {
-    write("Hello from 'program'!\n", 22);
+    write("Hello, World!\n", 14);
     exit();
 }

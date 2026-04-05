@@ -9,6 +9,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "keyboard.h"
+#include "process.h"
 #include "io.h"
 #include "fb.h"
 
@@ -178,21 +179,24 @@ static void idt_install_handlers(void)
     idt_set_entry(0x80, (unsigned int)syscall_handler_128, KERNEL_CODE_SEGMENT, 0xEE);
 }
 
-/* C interrupt dispatcher called from assembly common_interrupt_handler */
+/* Despacho C (comum a todas as interrupções): dispositivos, EOI, preempção. */
 void interrupt_handler(struct cpu_state cpu, unsigned int int_no,
                        struct stack_state stack)
 {
     (void)cpu;
-    (void)stack;
 
-    /* IRQ 1 (interrupt 33) = keyboard */
     if (int_no == 33) {
         keyboard_handler();
     }
 
-    /* Acknowledge PIC interrupts (32-47) */
+    /* EOI antes de schedule (timer pode não retornar “logo”). */
     if (int_no >= 32 && int_no <= 47) {
         pic_acknowledge(int_no);
+    }
+
+    /* IRQ0 + CPL=3: tick do PIT → próximo processo pronto. */
+    if (int_no == 32 && (stack.cs & 0x3) == 3) {
+        schedule();
     }
 }
 

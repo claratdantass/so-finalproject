@@ -1,53 +1,92 @@
-/* Keyboard driver: reads scan codes from the keyboard data port
- * and translates them to ASCII using a US QWERTY layout table.
- * Only handles key presses (ignores key releases with bit 7 set).
- */
+/* Driver de teclado: IRQ1 lê scan codes, ecoa no VGA e monta uma linha
+ * em buffer até Enter; o syscall SYS_READ consome essa linha. */
 
 #include "io.h"
 #include "fb.h"
 #include "keyboard.h"
 
 #define KBD_DATA_PORT   0x60
+#define KB_LINE_MAX     128
 
-/* US QWERTY scan code to ASCII lookup (set 1, lowercase only)
- * Index = scan code, value = ASCII char (0 = unmapped) */
+/* ---- Tabela scan code (set 1) → ASCII ---- */
 static const char scancode_to_ascii[128] = {
-    0,   27, '1', '2', '3', '4', '5', '6',     /* 0x00 - 0x07 */
-   '7', '8', '9', '0', '-', '=','\b','\t',     /* 0x08 - 0x0F */
-   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',     /* 0x10 - 0x17 */
-   'o', 'p', '[', ']','\n',  0,  'a', 's',     /* 0x18 - 0x1F */
-   'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',     /* 0x20 - 0x27 */
-  '\'', '`',  0, '\\', 'z', 'x', 'c', 'v',     /* 0x28 - 0x2F */
-   'b', 'n', 'm', ',', '.', '/',  0,  '*',     /* 0x30 - 0x37 */
-    0,  ' ',  0,   0,   0,   0,   0,   0,       /* 0x38 - 0x3F */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x40 - 0x47 */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x48 - 0x4F */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x50 - 0x57 */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x58 - 0x5F */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x60 - 0x67 */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x68 - 0x6F */
-    0,   0,   0,   0,   0,   0,   0,   0,       /* 0x70 - 0x77 */
-    0,   0,   0,   0,   0,   0,   0,   0        /* 0x78 - 0x7F */
+    0,   27, '1', '2', '3', '4', '5', '6',
+   '7', '8', '9', '0', '-', '=','\b','\t',
+   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
+   'o', 'p', '[', ']','\n',  0,  'a', 's',
+   'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',
+  '\'', '`',  0, '\\', 'z', 'x', 'c', 'v',
+   'b', 'n', 'm', ',', '.', '/',  0,  '*',
+    0,  ' ',  0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0
 };
 
-/* Read a scan code from the keyboard data port */
+/* ---- Estado da linha atual (até SYS_READ esvaziar) ---- */
+static char kb_line_buf[KB_LINE_MAX];
+static unsigned int kb_line_len = 0;
+static volatile int kb_line_complete = 0;
+
 static unsigned char read_scan_code(void)
 {
     return inb(KBD_DATA_PORT);
 }
 
-/* Handle keyboard IRQ: read scan code, translate, display on screen */
+/* ---- Tratamento de IRQ: eco + backspace + fim de linha ---- */
 void keyboard_handler(void)
 {
     unsigned char scan_code = read_scan_code();
+    char c;
 
-    /* Ignore key releases (bit 7 set) */
-    if (scan_code & 0x80) {
+    if (scan_code & 0x80)
         return;
-    }
 
-    char c = scancode_to_ascii[scan_code];
-    if (c != 0) {
-        fb_write(&c, 1);
+    c = scancode_to_ascii[scan_code];
+    if (c == 0)
+        return;
+
+    if (kb_line_complete)
+        return;
+
+    if (c == '\n') {
+        kb_line_complete = 1;
+        fb_write("\n", 1);
+    } else if (c == '\b') {
+        if (kb_line_len > 0) {
+            kb_line_len--;
+            fb_write("\b", 1);
+        }
+    } else {
+        if (kb_line_len < KB_LINE_MAX - 1) {
+            kb_line_buf[kb_line_len++] = c;
+            fb_write(&c, 1);
+        }
     }
+}
+
+/* ---- API usada pelo syscall SYS_READ ---- */
+int keyboard_has_line(void)
+{
+    return kb_line_complete;
+}
+
+unsigned int keyboard_read_line(char *buf, unsigned int max)
+{
+    unsigned int i, len;
+
+    len = kb_line_len;
+    if (len > max)
+        len = max;
+    for (i = 0; i < len; i++)
+        buf[i] = kb_line_buf[i];
+
+    kb_line_len = 0;
+    kb_line_complete = 0;
+    return len;
 }

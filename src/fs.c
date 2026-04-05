@@ -1,6 +1,10 @@
+/* Driver SOFS: imagem somente leitura na RAM (módulo GRUB).
+ * Cabeçalho + entradas + dados; busca por nome e listagem para o shell. */
+
 #include "fs.h"
 #include "kutil.h"
 
+/* ---- Parse do cabeçalho e acesso por índice ---- */
 int fs_init(struct fs_instance *fs, unsigned int base_addr)
 {
     fs->base_addr = base_addr;
@@ -53,4 +57,27 @@ unsigned int fs_file_size(struct fs_instance *fs, int index)
 const char *fs_file_name(struct fs_instance *fs, int index)
 {
     return fs->entries[index].name;
+}
+
+/* ---- Lista nomes de arquivos (newline-separated) para SYS_LISTFILES ---- */
+int fs_list(struct fs_instance *fs, char *buf, unsigned int buf_size)
+{
+    int num;
+    unsigned int i, pos = 0;
+
+    if (!fs->header)
+        return 0;
+
+    num = (int)fs->header->num_files;
+    for (i = 0; i < (unsigned int)num && pos < buf_size - 1; i++) {
+        const char *name = fs->entries[i].name;
+        unsigned int nlen = strlen(name);
+        if (pos + nlen + 1 >= buf_size)
+            break;
+        memcpy(buf + pos, name, nlen);
+        pos += nlen;
+        buf[pos++] = '\n';
+    }
+    buf[pos] = '\0';
+    return (int)pos;
 }

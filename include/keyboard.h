@@ -1,9 +1,8 @@
-/* Keyboard driver - reads scan codes and translates to ASCII */
-
 #ifndef INCLUDE_KEYBOARD_H
 #define INCLUDE_KEYBOARD_H
 
-/* Called from the interrupt dispatcher when IRQ1 fires */
 void keyboard_handler(void);
+int  keyboard_has_line(void);
+unsigned int keyboard_read_line(char *buf, unsigned int max);
 
 #endif /* INCLUDE_KEYBOARD_H */
