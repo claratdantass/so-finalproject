@@ -60,6 +60,9 @@ TSS_OBJ    := $(BUILD_DIR)/tss.o
 PAGING4K_SRC := $(SRC_DIR)/paging4k.c
 PAGING4K_OBJ := $(BUILD_DIR)/paging4k.o
 
+FS_SRC     := $(SRC_DIR)/fs.c
+FS_OBJ     := $(BUILD_DIR)/fs.o
+
 UMODE_ASM  := $(SRC_DIR)/usermode.s
 UMODE_OBJ  := $(BUILD_DIR)/usermode.o
 
@@ -70,7 +73,10 @@ PROG_START_OBJ := $(BUILD_DIR)/prog_start.o
 PROG_MAIN_SRC  := $(PROG_DIR)/program.c
 PROG_MAIN_OBJ  := $(BUILD_DIR)/prog_program.o
 PROG_LINK      := $(PROG_DIR)/link.ld
-PROG_BIN       := $(ISO_DIR)/modules/program
+
+# rootfs directory and initrd image
+ROOTFS_DIR     := $(BUILD_DIR)/rootfs
+INITRD         := $(ISO_DIR)/modules/initrd
 
 PROG_CFLAGS := -m32 -ffreestanding -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
                -nostartfiles -nodefaultlibs -fno-pie -Wall -Wextra -Werror -c
@@ -81,7 +87,7 @@ ALL_OBJS := $(LOADER_OBJ) $(IO_OBJ) $(GDT_OBJ) $(GDT_C_OBJ) \
             $(PIC_OBJ) $(KBD_OBJ) \
             $(FB_OBJ) $(SERIAL_OBJ) \
             $(PAGING_OBJ) $(PFA_OBJ) $(KHEAP_OBJ) $(KUTIL_OBJ) \
-            $(TSS_OBJ) $(PAGING4K_OBJ) $(UMODE_OBJ) \
+            $(TSS_OBJ) $(PAGING4K_OBJ) $(FS_OBJ) $(UMODE_OBJ) \
             $(KMAIN_OBJ)
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
@@ -174,6 +180,9 @@ $(TSS_OBJ): $(TSS_SRC) | $(BUILD_DIR)
 $(PAGING4K_OBJ): $(PAGING4K_SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
+$(FS_OBJ): $(FS_SRC) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
+
 $(UMODE_OBJ): $(UMODE_ASM) | $(BUILD_DIR)
 	$(NASM) -f elf32 $(UMODE_ASM) -o $@
 
@@ -187,14 +196,21 @@ $(PROG_START_OBJ): $(PROG_START_SRC) | $(BUILD_DIR)
 $(PROG_MAIN_OBJ): $(PROG_MAIN_SRC) | $(BUILD_DIR)
 	$(CC) $(PROG_CFLAGS) $< -o $@
 
-$(PROG_BIN): $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_LINK)
-	mkdir -p $(ISO_DIR)/modules
+# build rootfs directory with user programs, then pack into initrd
+$(ROOTFS_DIR): | $(BUILD_DIR)
+	mkdir -p $(ROOTFS_DIR)
+
+$(ROOTFS_DIR)/program: $(PROG_START_OBJ) $(PROG_MAIN_OBJ) $(PROG_LINK) | $(ROOTFS_DIR)
 	$(LD) -T $(PROG_LINK) -melf_i386 $(PROG_START_OBJ) $(PROG_MAIN_OBJ) -o $@
+
+$(INITRD): $(ROOTFS_DIR)/program tools/mkfs.py
+	mkdir -p $(ISO_DIR)/modules
+	python3 tools/mkfs.py $(ROOTFS_DIR) $@
 
 # make bootable ISO
 iso: $(OS_ISO)
 
-$(OS_ISO): kernel $(PROG_BIN)
+$(OS_ISO): kernel $(INITRD)
 	cp $(KERNEL_ELF) $(ISO_BOOT_KERNEL)
 	$(GRUB_MKRESCUE) -o $(OS_ISO) $(ISO_DIR)
 
@@ -208,5 +224,6 @@ debug: iso
 
 # remove build output and iso
 clean:
-	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(PROG_BIN) \
+	rm -f $(ALL_OBJS) $(KERNEL_ELF) $(OS_ISO) $(ISO_BOOT_KERNEL) $(INITRD) \
 	      $(PROG_START_OBJ) $(PROG_MAIN_OBJ)
+	rm -rf $(ROOTFS_DIR)
