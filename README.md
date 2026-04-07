@@ -1,5 +1,7 @@
 # so-finalproject
 
+[![Build Kernel](https://github.com/claratdantass/so-finalproject/actions/workflows/build.yml/badge.svg)](https://github.com/claratdantass/so-finalproject/actions/workflows/build.yml)
+
 Academic OS project based on the [Little OS Book](https://littleosbook.github.io/). Built from scratch for **x86 32-bit** (`i686-elf`), covering Chapters 2–4, 7–14: boot loader, C kernel entry, VGA/serial output, segmentation (GDT), interrupts (IDT + PIC), paging, memory allocators, user mode (ring 3), a simple read-only file system, system calls, cooperative + preemptive multitasking, and a **mini-shell** with a **real-time process viewer**.
 
 ---
